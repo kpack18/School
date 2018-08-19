@@ -1,0 +1,54 @@
+type intArray : 2 -> integer
+
+type stringArray : 1 -> string : ( "hello" )
+
+type real2int : ( real: r ) -> integer
+
+type getIntArray : ( integer: p00, integer: p01, integer: p10, integer: p11 )
+                 -> intArray
+
+function getInt: real2int {
+   getInt := r2i r;
+}
+
+function sayHello : noInput {
+   sayHello := "Hello!";
+}
+
+{ 
+ [ integer: i, x; string: s, s1; real: r, r1; Boolean: b, b1; character: c, c1;
+   intArray: ia, ia1; stringArray: sa ]
+
+   ia := initializeIntArray(1, 2, 3, 4);
+
+   switch ( i % 2 )
+      case 1: {
+         c := 'a';
+      }
+      case 2: {
+         c := 'b';
+         r := 5.7;
+      }
+      otherwise: {
+         c := 'c';
+         r := 0.0;
+      }
+
+   b := false;
+
+   s := sayHello();
+
+   if ( true | false & b = true )
+   then {
+      i := -4 + 3;
+   }
+   else {
+      i := 20;
+   }
+
+   while( x = 1 ){
+      x := x + 1;
+   }
+
+   release ia;
+}

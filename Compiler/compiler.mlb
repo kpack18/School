@@ -1,0 +1,18 @@
+local
+  $(SML_LIB)/basis/basis.mlb
+  $(SML_LIB)/mlyacc-lib/mlyacc-lib.mlb
+  temp_var.sml
+  source_code.sml
+  symbol_Table.sml
+  errormsgs.sml
+  parse_Tree.sml
+  runtime.sml
+  quad.sml
+  opt.sml
+  Assembly.sml
+  grammar.grm.sig
+  grammar.grm.sml
+  lexer.lex.sml
+in
+  compiler.sml
+end

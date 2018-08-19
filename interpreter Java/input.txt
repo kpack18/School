@@ -1,0 +1,23 @@
+inOutFun name1 x
+push x
+push 8
+bind
+funEnd
+pop
+push a
+push 4
+bind
+pop
+push a
+push name1
+call
+fun name1 y
+push q
+push z
+push 1
+push 1
+push 1
+push 1
+push 1
+funEnd
+quit

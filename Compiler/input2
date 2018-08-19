@@ -1,0 +1,21 @@
+(* Type definition *)
+type unaryIntFunction: (integer: x, Boolean: y) -> integer
+
+(* This is a function definition.
+   It uses the above type definition
+*)
+
+function square : unaryIntFunction {
+  square := null;
+}
+
+(* This is the main block of the program.
+   Execution begins in this block.
+*)
+
+{
+  [ integer: input := 7, expected := 49, actual ; Boolean: result ]
+  actual := square(input);
+  result := expected = actual;
+
+}

@@ -1,0 +1,22 @@
+Stack:
+------1-------
+Unit 
+--------------
+Bindings:
+------1-------
+a Int 8
+name1 inOutFun 
+| let
+| push Name y
+| push Name y
+| bind
+| pop
+| push Name q
+| push Name z
+| push Int 1
+| push Int 1
+| push Int 1
+| push Int 1
+| push Int 1
+| funEnd
+--------------

@@ -1,0 +1,5 @@
+type intArray: 1 -> integer
+{
+  [intArray: ai]
+  reserve ai();
+}

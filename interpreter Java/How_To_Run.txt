@@ -1,0 +1,9 @@
+
+Navigate to Jar Directory in A Terminal
+Make Sure input.txt and output.txt files exist in the same Directory as jar
+
+Run: java -jar Interpreter_Java.jar
+
+Contents of input.txt will be analyzed and output to both the Terminal and output.txt
+
+

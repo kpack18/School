@@ -1,0 +1,4 @@
+goto Main
+Main: b = 1
+b = 1
+c = 1

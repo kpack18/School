@@ -1,0 +1,5 @@
+Navigate to Directory of interpreter.exe in Terminal
+
+Make Sure file input.txt is in Same Directory
+
+Run File and Output will be Printed to Terminal

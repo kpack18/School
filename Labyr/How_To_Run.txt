@@ -1,0 +1,11 @@
+Navigate to Directory in Terminal
+
+Run: java -jar Labyrinth.jar "items" "name1" "name2" "name3" "name4"
+
+"items" = Total Number of Cards Dealt to Players (Max 24, Min 4)
+
+"name1" - "name4" = Can have up to 4 player names
+
+example: java -jar Labyrinth.jar 24 tom jim bob
+
+	Will Create a 24 Item Game with three players

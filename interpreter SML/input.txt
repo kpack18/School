@@ -1,0 +1,10 @@
+inOutFun test1 x
+push x
+push 4
+bind
+return
+funEnd
+push a
+push test1
+call
+quit

@@ -1,0 +1,307 @@
+open Quad;
+val name1 = ref "";
+val type1 = ref "";
+val type1_list = ref "";
+val extra1 = ref "";
+val scope = ref 0;
+val new_scope = ref 0;
+val old_scope = ref 0;
+val pblockstr = ref "";
+val dblockstr = ref "";
+val dblockstr_rec = ref "";
+fun printf() =
+  let
+    val str = !name1 ^ " : " ^ Int.toString(!scope) ^ " : " ^ !type1 ^ " : " ^ !extra1 ^ "\n"
+  in (TextIO.output(TextIO.stdOut, str)) end
+
+val print_grm_error : string * int * int -> unit =
+  fn (msg, line, col) => (
+  print ("LINE "^Int.toString(line)^":"^Int.toString(col)^
+         " ** ERROR: "^msg^"\n");
+         errorMsgs.push_Entry("** ERROR:"^Int.toString(line)^":"^Int.toString(col)^
+         ": "^msg^"\n", line));
+
+val stack = ref [0];
+fun push() = stack := (!scope)::(!stack);
+fun pop() = stack := tl (!stack);
+
+fun newscope() = (new_scope:=(!new_scope)+1)
+fun incscope() = (scope:=(!new_scope) + 1;push())
+fun decscope() = ()
+   (*(scope:= hd (!stack);pop())
+   handle Empty => print "Error: decscope()\n"*)
+fun oldscope() = if length(!stack) <= 2 then 0 else List.nth(!stack,1)
+
+fun print_stack(s) = case s of
+  (h::t) => (print((Int.toString h) ^ "\n");print_stack(t))
+  | z => ()
+
+fun add_Table_Entry(lin,col) = (symbol_Table.push_Entry(!name1,!scope,!type1,!extra1);
+                         create_Scope.add_table_value(!name1,lin,col,!scope))
+
+                         (* NOTE I CHANGED %left PIPE AMP TO BE ABOVE EQ BELOW *)
+
+%%
+
+%eop EOF
+%pos int
+%left ASSIGN
+%left PIPE AMP
+%left EQ
+%left LT
+%left MOD
+%left ADD SUB_OR_NEG
+%left MUL DIV
+%left ISNULL
+%left BANG I2R R2I
+%keyword TYPE FUNCTION FOR WHILE IF THEN ELSE
+        RESERVE RELEASE SWITCH CASE TRUE FALSE
+%term ID of string * int * int | TYPE | EOF | SEMI | NULL of int * int | C_STRING of string * int * int
+      | C_INTEGER of int * int * int | TRUE of int * int | FALSE of int * int | C_CHAR of string * int * int | C_REAL of string * int * int
+      | L_BRACK | R_BRACK
+      | ADD | SUB_OR_NEG | MUL | DIV |  ASSIGN | COLON
+      | L_BRACE | R_BRACE
+      | L_PAREN | R_PAREN
+      | T_BOOLEAN | T_INTEGER | T_REAL | T_CHAR | T_STRING
+      | FUNCTION
+      | ARROW
+      | COMMA
+      | FOR | WHILE | IF | THEN | ELSE
+      | RESERVE | RELEASE
+      | SWITCH | CASE | OTHERWISE
+      | BANG | I2R | R2I
+      | ISNULL
+      | RECOP
+      | EQ | LT | AMP | PIPE | MOD
+
+%nonterm program of string
+      | def_list
+      | sblock
+      | def
+      | dblock
+      | dblock_empty
+      | dec_list
+      | dec
+      | ablock
+      | arg_list
+      | arg_list_nonempty
+      | exp
+      | t_type
+      | lvalue
+      | id_list
+      | assignOp
+      | pblock
+      | param_list
+      | param_list_nonempty
+      | param_dec
+      | optionalVal
+      | stmt_list
+      | stmt
+      | stmt_assign
+      | stmt_case
+      | stmt_case_list
+      | constant
+      | assignable
+      | memOp
+      | preUnaryOp
+      | postUnaryOp
+      | binaryOp
+
+%name Compiler
+%eop EOF
+%noshift EOF
+
+%%
+program
+    : def_list sblock (addMainLabel();
+        parse_Tree.add_Node("program","");"")
+
+def_list
+    : (parse_Tree.add_Node_List([("e",""),("def_list","")]))
+    | def_list def (parse_Tree.add_Node("def_list",""))
+def
+    : TYPE ID COLON dblock (extra1:="rtype";name1:=(#1(ID));
+                            type1:=(!dblockstr_rec);
+                            add_Table_Entry(#2ID,#3ID);
+                            scope_Table.add_scopeID(!name1,#2ID,#3ID,!scope);
+                            parse_Tree.add_Leaf_List([("TYPE","",~1,~1),("ID",#1(ID),#2ID,#3ID),(":","",~1,~1),("def","",~1,~1)]))
+    | TYPE ID COLON C_INTEGER ARROW t_type optionalVal (name1:=(#1(ID));
+                                                        type1:=(Int.toString(#1(C_INTEGER)) ^ " -> "^(!type1));
+                                                        extra1:="atype";
+                                                        add_Table_Entry(#2ID,#3ID);
+                                                        scope_Table.add_scopeID(!name1,#2ID,#3ID,!scope);
+                                                        parse_Tree.add_Leaf_List([("TYPE","",~1,~1),("ID",#1(ID),#2ID,#2ID),(":","",~1,~1),("C_INTEGER",Int.toString(#1C_INTEGER),#2C_INTEGER,#3C_INTEGER),("->","",~1,~1),("def","",~1,~1)]))
+    | TYPE ID COLON pblock ARROW t_type (extra1:="ftype";
+                                         name1:=(#1(ID));
+                                         type1:=(!pblockstr^" -> "^(!type1));
+                                         add_Table_Entry(#2ID,#3ID);
+                                         scope_Table.add_scopeID(!name1,#2ID,#3ID,!scope);
+                                         parse_Tree.add_Leaf_List([("TYPE","",~1,~1),("ID",#1(ID),#2ID,#3ID),(":","",~1,~1),("->","",~1,~1),("def","",~1,~1)]))
+    | FUNCTION ID COLON t_type sblock (qpush(Id(#1ID,[]));mkTreeFunc();
+                                  extra1:="function"; name1:=(#1(ID));
+                                   add_Table_Entry(#2ID,#3ID);
+                                   scope_Table.add_scopeID(!name1,#2ID,#3ID,!scope);
+                                   parse_Tree.add_Leaf_List([("FUNCTION","",~1,~1),("ID",#1(ID),#2ID,#3ID),(":","",~1,~1),("def","",~1,~1)]))
+
+optionalVal
+    : (parse_Tree.add_Node_List[("e",""),("optionalVal","")])
+    | COLON L_PAREN constant R_PAREN (parse_Tree.add_Node_List([(":",""),("(",""),(")",""),("optionalVal","")]))
+
+sblock
+    : L_BRACE dblock_empty stmt_list R_BRACE (mkTreeSblock();
+      parse_Tree.add_Node_List([("{",""),("}",""),("sblock","")]))
+dblock
+    : L_BRACK dec_list R_BRACK (parse_Tree.add_Node_List([("[",""),("]",""),("dblock","")]);newscope();dblockstr:="["^(!dblockstr)^"]";dblockstr_rec:="["^(!dblockstr_rec)^"]")
+dblock_empty
+    : (mkTreeDBlockEmpty();
+        (parse_Tree.add_Node_List([("e",""),("dblock_empty","")]);newscope()))
+    | dblock (parse_Tree.add_Node("dblock_empty",""))
+pblock
+    : L_PAREN param_list R_PAREN (newscope();pblockstr:="("^(!pblockstr)^")";
+                                  parse_Tree.add_Node_List([("(",""),(")",""),("pblock","")]))
+ablock
+    : L_PAREN arg_list R_PAREN (
+        parse_Tree.add_Node_List([("(",""),(")",""),("ablock","")]))
+
+arg_list
+    : (mkTreeAssArgEmpty();
+        parse_Tree.add_Node_List([("e",""),("arg_list","")]))
+    | arg_list_nonempty (parse_Tree.add_Node("arg_list",""))
+arg_list_nonempty
+    : arg_list_nonempty COMMA exp (addTreeAssArg();
+        parse_Tree.add_Node_List([(",",""),("arg_list_nonempty","")]))
+    | exp (mkTreeAssArg();
+        parse_Tree.add_Node("arg_list_nonempty",""))
+
+param_list
+    : (parse_Tree.add_Node_List([("e",""),("param_list","")]))
+    | param_list_nonempty (parse_Tree.add_Node("param_list",""))
+
+param_list_nonempty
+    : param_list_nonempty COMMA param_dec (pblockstr:=(!pblockstr)^", "^(!type1);
+                                        parse_Tree.add_Node_List([(",",""),("param_list_nonempty","")]))
+    | param_dec (pblockstr:=(!type1);parse_Tree.add_Node("param_list_nonempty",""))
+
+param_dec
+    : t_type COLON ID (incscope();name1:=(#1(ID));extra1:="parameter";
+                       add_Table_Entry(#2ID,#3ID);
+                       parse_Tree.add_Leaf_List([(":","",~1,~1),("ID",#1(ID),#2ID,#3ID),("param_dec","",~1,~1)]);
+                       decscope())
+
+dec_list
+    : dec_list SEMI dec (parse_Tree.add_Node_List([(";",""),("dec_list","")]);dblockstr:=(!dblockstr)^", "^(!type1);dblockstr_rec:=(!dblockstr_rec)^", "^(!type1_list))
+    | dec (parse_Tree.add_Node("dec_list","");dblockstr:=(!type1);dblockstr_rec:=(!type1_list))
+
+dec
+    : t_type COLON id_list (parse_Tree.add_Node_List([(":",""),("dec","")]))
+
+id_list
+    : id_list COMMA ID assignOp (qpush(Id(#1ID,[]));mkTreeStmtAssign2();incscope();
+                                parse_Tree.add_Leaf_List([(",","",~1,~1),("ID",#1(ID),#2ID,#3ID),("id_list","",~1,~1)]);name1:=(#1(ID));extra1:="local";
+                                add_Table_Entry(#2ID,#3ID);type1_list := (!type1_list)^", "^(!type1))
+    | ID assignOp (qpush(Id(#1ID,[])); mkTreeStmtAssign2();incscope();
+                  parse_Tree.add_Leaf_List([("ID",#1(ID),#2ID,#3ID),("id_list","",~1,~1)]);name1:=(#1(ID));extra1:="local";
+                  add_Table_Entry(#2ID,#3ID);type1_list := (!type1))
+assignOp
+    : (qpush(EmptyExp(1));
+       parse_Tree.add_Node_List([("e",""),("assignOp","")]))
+    | ASSIGN constant (parse_Tree.add_Node_List([(":=",""),("assignOp","")]))
+
+stmt_list
+    : stmt (mkTreeStmtlist();
+        parse_Tree.add_Node("stmt_list",""))
+    | stmt_list stmt (addTreeStmtlist();
+        parse_Tree.add_Node("stmt_list",""))
+stmt
+    : sblock (parse_Tree.add_Node("stmt",""))
+    | stmt_assign SEMI (parse_Tree.add_Node_List([(";",""),("stmt","")]))
+    | WHILE L_PAREN exp R_PAREN sblock (mkTreeWhile();
+        parse_Tree.add_Node_List([("WHILE",""),("(",""),(")",""),("stmt","")]))
+    | IF L_PAREN exp R_PAREN THEN sblock ELSE sblock (mkTreeIf();
+        parse_Tree.add_Node_List([("IF",""),("(",""),(")",""),("THEN",""),("ELSE",""),("stmt","")]))
+    | FOR L_PAREN stmt SEMI exp SEMI stmt R_PAREN sblock (mkTreeFor();
+        parse_Tree.add_Node_List([("FOR",""),("(",""),(";",""),(";",""),(")",""),("stmt","")]))
+    | SWITCH L_PAREN exp R_PAREN stmt_case_list OTHERWISE COLON sblock (addTreeOtherwise();
+        parse_Tree.add_Node_List([("SWITCH",""),("(",""),(")",""),("OTHERWISE",""),(":",""),("stmt","")]))
+    | memOp assignable SEMI (mkTreeMemOp();
+        parse_Tree.add_Node_List([(";",""),("stmt","")]))
+stmt_assign
+    : assignable ASSIGN exp (mkTreeStmtAssign();
+      parse_Tree.add_Node_List([(":=",""),("stmt_assign","")]))
+stmt_case_list
+    : stmt_case (mkTreeSwitch();
+        parse_Tree.add_Node("stmt_case_list",""))
+    | stmt_case_list stmt_case (addTreeSwitch();
+        parse_Tree.add_Node("stmt_case_list",""))
+stmt_case
+    : CASE constant COLON sblock (mkTreeCase();
+        parse_Tree.add_Node_List([("CASE",""),(":",""),("stmt_case","")]))
+
+t_type
+    : T_INTEGER (parse_Tree.add_Node_List([("T_INTEGER",""),("t_type","")]);type1 := "integer";type1_list := "integer")
+    | T_BOOLEAN (parse_Tree.add_Node_List([("T_BOOLEAN",""),("t_type","")]);type1 := "Boolean";type1_list := "Boolean")
+    | T_CHAR (parse_Tree.add_Node_List([("T_CHAR",""),("t_type","")]);type1 := "char";type1_list := "char")
+    | T_STRING (parse_Tree.add_Node_List([("T_STRING",""),("t_type","")]);type1 := "string";type1_list := "string")
+    | T_REAL (parse_Tree.add_Node_List([("T_REAL",""),("t_type","")]);type1 := "real";type1_list := "real")
+    | ID (parse_Tree.add_Leaf_List([("ID",#1(ID),#2ID,#3ID),("t_type","",~1,~1)]);type1 := (#1(ID));type1_list := #1 ID)
+exp
+    : constant (parse_Tree.add_Node("exp",""))
+    | assignable (parse_Tree.add_Node("exp",""))
+    | binaryOp (parse_Tree.add_Node("exp",""))
+    | BANG exp (mkTreeUnOp(Bang("!"));
+        parse_Tree.add_Node_List([("!",""),("exp","")]))
+    | I2R exp (mkTreeUnOp(I2r("(real "));
+        parse_Tree.add_Node_List([("I2R",""),("exp","")]))
+    | R2I exp (mkTreeUnOp(R2i("(integer) "));
+        parse_Tree.add_Node_List([("R2I",""),("exp","")]))
+    | SUB_OR_NEG exp (mkTreeUnOp(Neg("-"));
+        parse_Tree.add_Node_List([("-",""),("exp","")]))
+    | exp ISNULL (mkTreeIsNull();
+        parse_Tree.add_Node_List([("ISNULL",""),("exp","")]))
+    | L_PAREN exp R_PAREN (parse_Tree.add_Node_List([("(",""),(")",""),("exp","")]))
+
+constant
+    : C_INTEGER (qpush(Const(Int.toString(#1C_INTEGER),[]));
+        parse_Tree.add_Leaf_List([("C_INTEGER",Int.toString(#1(C_INTEGER)),#2C_INTEGER,#3C_INTEGER),("constant","",~1,~1)]))
+    | C_CHAR (qpush(Const(#1C_CHAR,[]));
+      parse_Tree.add_Leaf_List([("C_CHAR",#1C_CHAR,#2C_CHAR,#3C_CHAR),("constant","",~1,~1)]))
+    | C_REAL (qpush(Const(#1C_REAL,[]));
+      parse_Tree.add_Leaf_List([("C_REAL",#1C_REAL,#2C_REAL,#3C_REAL),("constant","",~1,~1)]))
+    | C_STRING (qpush(Const(#1C_STRING,[]));
+      parse_Tree.add_Leaf_List([("C_STRING",#1C_STRING,#2C_STRING,#3C_STRING),("constant","",~1,~1)]))
+    | TRUE (qpush(Const("true",[]));
+      parse_Tree.add_Leaf_List([("true","true",#1TRUE,#2TRUE),("constant","",~1,~1)]))
+    | FALSE (qpush(Const("false",[]));
+      parse_Tree.add_Leaf_List([("false","false",#1FALSE,#2FALSE),("constant","",~1,~1)]))
+    | NULL (qpush(Const("null",[]));
+      parse_Tree.add_Leaf_List([("null","null",#1NULL,#2NULL),("constant","",~1,~1)]))
+assignable
+    : ID (qpush(Id(#1ID,[]));
+      parse_Tree.add_Leaf_List([("ID",#1(ID),#2(ID),#3(ID)),("assignable","",~1,~1)]);name1 := #1(ID))
+    | assignable ablock (
+        parse_Tree.add_Node("assignable",""))
+    | assignable RECOP ID (parse_Tree.add_Leaf_List([(".","",~1,~1),("ID",#1(ID),#2(ID),#3(ID)),("assignable","",~1,~1)]))
+memOp
+    : RESERVE (qpush(ResExp("reserve"));
+        parse_Tree.add_Node_List([("reserve",""),("memOp","")]))
+    | RELEASE (qpush(RelExp("release"));
+        parse_Tree.add_Node_List([("release",""),("memOp","")]))
+binaryOp
+    : exp ADD exp (mkTreeBinOp(Plus("+"));
+        parse_Tree.add_Node_List([("+",""),("binaryOp","")]))
+    | exp SUB_OR_NEG exp (mkTreeBinOp(Sub("-"));
+        parse_Tree.add_Node_List([("-",""),("binaryOp","")]))
+    | exp MUL exp (mkTreeBinOp(Mul("*"));
+        parse_Tree.add_Node_List([("*",""),("binaryOp","")]))
+    | exp DIV exp (mkTreeBinOp(Div("/"));
+        parse_Tree.add_Node_List([("/",""),("binaryOp","")]))
+    | exp PIPE exp (mkTreeBoolOp(Pipe("|"));
+        parse_Tree.add_Node_List([("|",""),("binaryOp","")]))
+    | exp AMP exp (mkTreeBoolOp(Amp("&"));
+        parse_Tree.add_Node_List([("&",""),("binaryOp","")]))
+    | exp MOD exp (mkTreeBinOp(Mod("%"));
+        parse_Tree.add_Node_List([("%",""),("binaryOp","")]))
+    | exp LT exp (mkTreeRelOp(Lt("<"));
+        parse_Tree.add_Node_List([("<",""),("binaryOp","")]))
+    | exp EQ exp (mkTreeRelOp(Eq("=="));
+        parse_Tree.add_Node_List([("=",""),("binaryOp","")]))

@@ -1,0 +1,16 @@
+## To compile
+make
+
+## To run
+./compiler filename
+
+# symbol table
+./compiler -st filename
+
+# other flags
+-asc #annotated source code
+-par=2 #print parse tree
+-pt #print table
+-pst #print scope
+-ir #print intermediate code
+-All #writes all files (equivilent to -st -asc -ir)
